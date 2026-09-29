@@ -1,22 +1,48 @@
 package com.santosh.aiproductionintelligence.service;
 
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.santosh.aiproductionintelligence.entity.Incident;
+import com.santosh.aiproductionintelligence.entity.OutboxEvent;
 import com.santosh.aiproductionintelligence.repository.IncidentRepository;
+import com.santosh.aiproductionintelligence.repository.OutboxEventRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class IncidentService {
 
     private final IncidentRepository incidentRepository;
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
 
-    public IncidentService(IncidentRepository incidentRepository) {
+    public IncidentService(
+            IncidentRepository incidentRepository,
+            OutboxEventRepository outboxEventRepository,
+            ObjectMapper objectMapper) {
         this.incidentRepository = incidentRepository;
+        this.outboxEventRepository = outboxEventRepository;
+        this.objectMapper = objectMapper;
     }
 
-    public Incident createIncident(Incident incident){
+    @Transactional
+    public Incident createIncident(Incident incident) {
 
-        return incidentRepository.save(incident);
+        Incident savedIncident = incidentRepository.save(incident);
 
+        OutboxEvent outboxEvent = new OutboxEvent();
+        outboxEvent.setAggregateId(savedIncident.getId());
+        outboxEvent.setAggregateType("INCIDENT");
+        outboxEvent.setEventType("INCIDENT_CREATED");
 
+        try {
+            outboxEvent.setPayload(objectMapper.writeValueAsString(savedIncident));
+        } catch (JacksonException  e) {
+            throw new IllegalStateException("Failed to create incident event payload", e);
+        }
+
+        outboxEventRepository.save(outboxEvent);
+
+        return savedIncident;
     }
 }
