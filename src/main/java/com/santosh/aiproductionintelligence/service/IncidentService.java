@@ -9,6 +9,8 @@ import com.santosh.aiproductionintelligence.repository.OutboxEventRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 public class IncidentService {
 
@@ -44,5 +46,10 @@ public class IncidentService {
         outboxEventRepository.save(outboxEvent);
 
         return savedIncident;
+    }
+
+    public List<OutboxEvent> getPendingOutboxEvents() {
+        return outboxEventRepository
+                .findTop100ByPublishedAtIsNullOrderByCreatedAtAsc();
     }
 }
